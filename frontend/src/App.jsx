@@ -1,0 +1,221 @@
+import { useState } from 'react'
+import { GraduationCap, LayoutDashboard, Upload as UploadIcon, Save, AlertCircle, CheckCircle } from 'lucide-react'
+import FileUpload from './components/FileUpload'
+import Dashboard from './components/Dashboard'
+import { createUser, saveResult } from './services/api'
+
+const TABS = ['Upload', 'Dashboard']
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('Upload')
+  const [user, setUser] = useState(null)   // { id, name, usn }
+  const [setupForm, setSetupForm] = useState({ name: '', usn: '', email: '' })
+  const [setupStatus, setSetupStatus] = useState({ type: '', message: '' })
+  const [parsedResult, setParsedResult] = useState(null)
+  const [saveForm, setSaveForm] = useState({ semester: '' })
+  const [saveStatus, setSaveStatus] = useState({ type: '', message: '' })
+
+  // -------------------------------------------------------------------------
+  // User setup
+  // -------------------------------------------------------------------------
+  const handleSetup = async (e) => {
+    e.preventDefault()
+    setSetupStatus({ type: '', message: '' })
+    try {
+      const newUser = await createUser(setupForm)
+      setUser(newUser)
+      setSetupStatus({ type: 'success', message: `Welcome, ${newUser.name}!` })
+    } catch (err) {
+      setSetupStatus({ type: 'error', message: err.message })
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Save result after upload
+  // -------------------------------------------------------------------------
+  const handleSaveResult = async (e) => {
+    e.preventDefault()
+    if (!parsedResult || !user || !saveForm.semester) return
+    setSaveStatus({ type: '', message: '' })
+    try {
+      await saveResult({
+        user_id: user.id,
+        semester: parseInt(saveForm.semester, 10),
+        sgpa: parsedResult.sgpa,
+        total_credits: parsedResult.total_credits,
+        subjects: parsedResult.subjects,
+      })
+      setSaveStatus({ type: 'success', message: 'Result saved successfully!' })
+      setParsedResult(null)
+      setSaveForm({ semester: '' })
+    } catch (err) {
+      setSaveStatus({ type: 'error', message: err.message })
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-indigo-700 font-bold text-xl">
+            <GraduationCap className="w-7 h-7" />
+            SGPA Vault
+          </div>
+          {user && (
+            <span className="text-sm text-gray-500">
+              {user.name} · <span className="font-mono">{user.usn}</span>
+            </span>
+          )}
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+        {/* User setup */}
+        {!user && (
+          <section className="bg-white rounded-2xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-4">Set Up Your Profile</h2>
+            <form onSubmit={handleSetup} className="grid sm:grid-cols-3 gap-4">
+              <input
+                required
+                placeholder="Full Name"
+                value={setupForm.name}
+                onChange={(e) => setSetupForm({ ...setupForm, name: e.target.value })}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+              <input
+                required
+                placeholder="USN (e.g. 1RN22CS001)"
+                value={setupForm.usn}
+                onChange={(e) => setSetupForm({ ...setupForm, usn: e.target.value.toUpperCase() })}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 font-mono"
+              />
+              <input
+                type="email"
+                placeholder="Email (optional)"
+                value={setupForm.email}
+                onChange={(e) => setSetupForm({ ...setupForm, email: e.target.value })}
+                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              />
+              <button
+                type="submit"
+                className="sm:col-span-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-xl transition-colors"
+              >
+                Create Profile
+              </button>
+            </form>
+            {setupStatus.message && (
+              <div className={`flex items-center gap-2 mt-3 text-sm ${setupStatus.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+                {setupStatus.type === 'error'
+                  ? <AlertCircle className="w-4 h-4" />
+                  : <CheckCircle className="w-4 h-4" />}
+                {setupStatus.message}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Tab navigation */}
+        <div className="flex gap-2 border-b border-gray-200">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-2 px-4 text-sm font-medium flex items-center gap-1.5 border-b-2 transition-colors
+                ${activeTab === tab ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              {tab === 'Upload' ? <UploadIcon className="w-4 h-4" /> : <LayoutDashboard className="w-4 h-4" />}
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Upload tab */}
+        {activeTab === 'Upload' && (
+          <section className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
+            <h2 className="text-lg font-semibold text-gray-700">Upload VTU Result PDF</h2>
+            <FileUpload onResult={setParsedResult} />
+
+            {/* Parsed result preview */}
+            {parsedResult && (
+              <div className="border border-indigo-100 rounded-2xl p-4 bg-indigo-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-indigo-700">Parsed Result</h3>
+                  <span className="text-2xl font-bold text-indigo-700">{parsedResult.sgpa} SGPA</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">Total Credits: {parsedResult.total_credits}</p>
+
+                {/* Subjects table */}
+                <div className="overflow-x-auto rounded-xl">
+                  <table className="min-w-full bg-white text-xs">
+                    <thead className="bg-indigo-100 text-indigo-700 uppercase">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Subject Code</th>
+                        <th className="px-3 py-2 text-left">Credits</th>
+                        <th className="px-3 py-2 text-left">Grade</th>
+                        <th className="px-3 py-2 text-left">Points</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {parsedResult.subjects.map((s) => (
+                        <tr key={s.subject_code}>
+                          <td className="px-3 py-2 font-mono">{s.subject_code}</td>
+                          <td className="px-3 py-2">{s.credits}</td>
+                          <td className="px-3 py-2 font-semibold">{s.grade}</td>
+                          <td className="px-3 py-2">{s.grade_points}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Save form */}
+                {user && (
+                  <form onSubmit={handleSaveResult} className="mt-4 flex items-center gap-3">
+                    <select
+                      required
+                      value={saveForm.semester}
+                      onChange={(e) => setSaveForm({ semester: e.target.value })}
+                      className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    >
+                      <option value="">Select Semester</option>
+                      {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => (
+                        <option key={s} value={s}>Semester {s}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save to Dashboard
+                    </button>
+                  </form>
+                )}
+                {saveStatus.message && (
+                  <div className={`flex items-center gap-2 mt-2 text-sm ${saveStatus.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+                    {saveStatus.type === 'error'
+                      ? <AlertCircle className="w-4 h-4" />
+                      : <CheckCircle className="w-4 h-4" />}
+                    {saveStatus.message}
+                  </div>
+                )}
+                {!user && (
+                  <p className="text-xs text-gray-400 mt-2">Create a profile above to save this result.</p>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Dashboard tab */}
+        {activeTab === 'Dashboard' && (
+          <section className="bg-white rounded-2xl shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-700 mb-6">Your Dashboard</h2>
+            <Dashboard userId={user?.id} />
+          </section>
+        )}
+      </main>
+    </div>
+  )
+}
