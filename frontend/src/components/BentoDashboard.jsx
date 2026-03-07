@@ -44,6 +44,8 @@ export default function BentoDashboard({ userId, parsedResult, onResult }) {
     setIsModalOpen(true)
   }
 
+  const sortedResults = [...results].sort((a, b) => Number(a.semester) - Number(b.semester))
+
   if (!userId) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -91,100 +93,69 @@ export default function BentoDashboard({ userId, parsedResult, onResult }) {
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 overflow-hidden">
-      {/* Animated background blobs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Indigo blob */}
-        <motion.div
-          className="absolute -top-40 -right-40 w-80 h-80 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
-          animate={{
-            x: [0, 100, 0],
-            y: [0, 50, 0],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        {/* Cyan blob */}
-        <motion.div
-          className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20"
-          animate={{
-            x: [0, -100, 0],
-            y: [0, -50, 0],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 px-4 py-8 lg:px-8">
+    <div className="min-h-screen bg-[#020617]">
+      <div className="px-4 py-8 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-12"
+          transition={{ duration: 0.35 }}
+          className="mb-8"
         >
-          <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-indigo-200 via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl lg:text-4xl font-bold text-slate-100 mb-1">
             SGPA Vault
           </h1>
-          <p className="text-gray-400 text-lg">Your complete semester performance tracker</p>
+          <p className="text-slate-400 text-sm">Cyber-Flat academic performance tracker</p>
         </motion.div>
 
         {/* Bento Grid */}
         <motion.div
-          className="grid grid-cols-1 lg:grid-cols-12 gap-6 auto-rows-[300px] lg:auto-rows-[280px]"
+          className="grid grid-cols-1 xl:grid-cols-6 gap-4 auto-rows-[280px]"
           variants={container}
           initial="hidden"
           animate="show"
         >
           {/* 1. Overall CGPA - Large card (top-left) */}
           <motion.div
-            className="lg:col-span-5 lg:row-span-2"
+            className="xl:col-span-2"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.25 }}
           >
-            <OverallStats cgpa={cgpa} semestersTracked={results.length} />
+            <OverallStats cgpa={Number(cgpa)} semestersTracked={sortedResults.length} />
           </motion.div>
 
           {/* 2. Trend Chart - Wide card (top-right) */}
           <motion.div
-            className="lg:col-span-7"
+            className="xl:col-span-4"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
+            transition={{ duration: 0.25, delay: 0.05 }}
           >
-            <TrendChart results={results} />
+            <TrendChart results={sortedResults} />
           </motion.div>
 
-          {/* 3. Upload Zone - Center wide card */}
+          {/* 3. Upload Zone - Tactical terminal panel */}
           <motion.div
-            className="lg:col-span-7"
+            className="xl:col-span-6"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
+            transition={{ duration: 0.25, delay: 0.1 }}
           >
             <UploadZone onResult={onResult} />
           </motion.div>
         </motion.div>
 
         {/* Semester Cards Grid - Below main bento */}
-        {results.length > 0 && (
+        {sortedResults.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-12"
+            transition={{ duration: 0.25, delay: 0.15 }}
+            className="mt-8"
           >
-            <h2 className="text-2xl font-bold text-gray-100 mb-6">Semester Breakdown</h2>
-            <SemesterCards results={results} onSemesterClick={handleSemesterClick} />
+            <h2 className="text-lg font-semibold text-slate-100 mb-4">8-Semester Grid</h2>
+            <SemesterCards results={sortedResults} onSemesterClick={handleSemesterClick} />
           </motion.div>
         )}
 
@@ -196,7 +167,7 @@ export default function BentoDashboard({ userId, parsedResult, onResult }) {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mt-12 text-center"
           >
-            <p className="text-gray-400 text-lg">
+            <p className="text-slate-400 text-base">
               Upload your first result PDF to get started!
             </p>
           </motion.div>

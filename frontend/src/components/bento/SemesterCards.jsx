@@ -4,12 +4,12 @@ import { motion } from 'framer-motion'
  * SemesterCards - Grid of semester performance cards
  */
 export default function SemesterCards({ results, onSemesterClick }) {
-  const getGradeColor = (sgpa) => {
-    if (sgpa >= 9) return 'from-emerald-500 to-teal-500'
-    if (sgpa >= 8) return 'from-blue-500 to-cyan-500'
-    if (sgpa >= 7) return 'from-indigo-500 to-blue-500'
-    if (sgpa >= 6) return 'from-yellow-500 to-amber-500'
-    return 'from-orange-500 to-red-500'
+  const getBadgeColor = (sgpa) => {
+    if (sgpa >= 9) return 'text-cyan-300 border-cyan-400/60'
+    if (sgpa >= 8) return 'text-cyan-400 border-cyan-500/40'
+    if (sgpa >= 7) return 'text-slate-200 border-slate-500/60'
+    if (sgpa >= 6) return 'text-amber-300 border-amber-500/40'
+    return 'text-rose-300 border-rose-500/40'
   }
 
   const getGradeLabel = (sgpa) => {
@@ -37,7 +37,7 @@ export default function SemesterCards({ results, onSemesterClick }) {
 
   return (
     <motion.div
-      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-4"
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3"
       variants={container}
       initial="hidden"
       animate="show"
@@ -46,52 +46,35 @@ export default function SemesterCards({ results, onSemesterClick }) {
         <motion.div
           key={result.semester}
           variants={item}
-          whileHover={{ y: -8, scale: 1.05 }}
+          whileHover={{ y: -4 }}
+          transition={{ duration: 0.18 }}
           onClick={() => onSemesterClick && onSemesterClick(result)}
           className="group cursor-pointer"
         >
-          <div className="relative h-32 rounded-xl overflow-hidden">
-            {/* Glass background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 group-hover:border-white/40 transition-all" />
+          <div className="h-28 rounded-md border border-[#06b6d4]/35 bg-[#0f172a] group-hover:border-cyan-400 transition-colors">
+            <div className="h-full flex flex-col items-start justify-between p-3">
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                Semester {result.semester}
+              </p>
 
-            {/* Gradient accent */}
-            <div
-              className={`absolute inset-0 bg-gradient-to-br ${getGradeColor(
-                result.sgpa,
-              )} opacity-0 group-hover:opacity-10 transition-all duration-300`}
-            />
+              <div className="flex items-end justify-between w-full">
+                <div className="text-left">
+                  <div className="text-2xl font-bold text-cyan-400">
+                    {result.sgpa.toFixed(2)}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{getGradeLabel(result.sgpa)}</p>
+                </div>
 
-            {/* Glow effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/0 via-indigo-600/0 to-cyan-600/0 group-hover:from-indigo-600/5 group-hover:via-cyan-600/5 group-hover:to-indigo-600/5 transition-all duration-300" />
+                <span
+                  className={`text-[10px] px-2 py-1 border rounded-sm ${getBadgeColor(result.sgpa)}`}
+                >
+                  SGPA
+                </span>
+              </div>
 
-            {/* Content */}
-            <div className="relative h-full flex flex-col items-center justify-center p-4 text-center">
-              {/* Semester label */}
-              <motion.p
-                className="text-xs font-semibold text-gray-400 uppercase tracking-wide"
-                whileHover={{ color: '#e0e7ff' }}
-              >
-                Sem {result.semester}
-              </motion.p>
+              <div className="w-full h-px bg-[#1e293b]" />
 
-              {/* SGPA value */}
-              <motion.div
-                className={`text-3xl font-bold bg-gradient-to-r ${getGradeColor(
-                  result.sgpa,
-                )} bg-clip-text text-transparent mt-1`}
-                initial={{ scale: 0.8 }}
-                whileHover={{ scale: 1.1 }}
-              >
-                {result.sgpa.toFixed(2)}
-              </motion.div>
-
-              {/* Grade label */}
-              <motion.p
-                className="text-xs text-gray-500 mt-1"
-                whileHover={{ color: '#d1d5db' }}
-              >
-                {getGradeLabel(result.sgpa)}
-              </motion.p>
+              <p className="text-[10px] text-slate-500">Tap to view details</p>
             </div>
           </div>
         </motion.div>

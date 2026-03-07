@@ -73,22 +73,23 @@ export default function UploadZone({ onResult }) {
 
   return (
     <motion.div
-      whileHover={{ y: -10 }}
-      className="relative h-full rounded-2xl overflow-hidden group"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+      className="h-full rounded-xl border border-[#1e293b] bg-[#0f172a]"
     >
-      {/* Glass background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-md border border-white/20 group-hover:border-white/40 transition-colors" />
+      <div className="h-full flex flex-col items-center justify-center p-6">
+        <div className="w-full mb-4 flex items-center justify-between border-b border-[#1e293b] pb-2">
+          <p className="text-xs uppercase tracking-[0.18em] text-cyan-400">Terminal Upload</p>
+          <p className="text-[10px] text-slate-500">PDF.Parser.v2</p>
+        </div>
 
-      {/* Glow effect on hover */}
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/0 via-indigo-600/0 to-cyan-600/0 group-hover:from-indigo-600/10 group-hover:via-cyan-600/10 group-hover:to-indigo-600/10 transition-all duration-300" />
-
-      {/* Content */}
-      <div className="relative h-full flex flex-col items-center justify-center p-8">
         <div
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          className="w-full h-full flex flex-col items-center justify-center cursor-pointer"
+          className={`w-full h-full flex flex-col items-center justify-center cursor-pointer border rounded-md transition-colors ${
+            isDragging ? 'border-cyan-400 bg-cyan-500/5' : 'border-[#1e293b]'
+          }`}
         >
           <input
             type="file"
@@ -107,17 +108,12 @@ export default function UploadZone({ onResult }) {
                 exit={{ opacity: 0, y: -10 }}
                 className="flex flex-col items-center gap-3 text-center"
               >
-                <motion.div
-                  animate={{ y: [0, -5, 0] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                >
-                  <Upload className={`w-12 h-12 ${isDragging ? 'text-indigo-400' : 'text-gray-400'}`} />
-                </motion.div>
+                <Upload className={`w-10 h-10 ${isDragging ? 'text-cyan-400' : 'text-slate-500'}`} />
                 <label htmlFor="pdf-upload" className="cursor-pointer">
-                  <p className="text-gray-200 font-semibold text-sm">
-                    Drop your VTU result PDF here
+                  <p className="text-slate-200 font-semibold text-sm">
+                    Drag VTU result PDF into terminal
                   </p>
-                  <p className="text-gray-400 text-xs mt-1">or click to browse</p>
+                  <p className="text-slate-500 text-xs mt-1">or click to browse filesystem</p>
                 </label>
               </motion.div>
             )}
@@ -130,20 +126,19 @@ export default function UploadZone({ onResult }) {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="flex flex-col items-center gap-3 w-full"
               >
-                <FileText className="w-12 h-12 text-indigo-400" />
+                <FileText className="w-10 h-10 text-cyan-400" />
                 <div className="text-center max-w-[200px]">
-                  <p className="text-gray-200 font-semibold text-sm truncate">{file.name}</p>
-                  <p className="text-gray-400 text-xs mt-1">
+                  <p className="text-slate-200 font-semibold text-sm truncate">{file.name}</p>
+                  <p className="text-slate-500 text-xs mt-1">
                     {(file.size / 1024).toFixed(2)} KB
                   </p>
                 </div>
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ y: -2 }}
                   onClick={handleUpload}
-                  className="mt-3 px-6 py-2 bg-gradient-to-r from-indigo-500 to-cyan-500 rounded-lg text-white text-sm font-medium hover:shadow-lg hover:shadow-indigo-500/50 transition-all"
+                  className="mt-3 px-6 py-2 bg-cyan-500 hover:bg-cyan-400 rounded-md text-slate-950 text-sm font-semibold transition-colors"
                 >
-                  Parse PDF
+                  Parse File
                 </motion.button>
               </motion.div>
             )}
@@ -156,8 +151,8 @@ export default function UploadZone({ onResult }) {
                 exit={{ opacity: 0 }}
                 className="flex flex-col items-center gap-3"
               >
-                <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-                <p className="text-gray-300 text-sm font-medium">Parsing your PDF…</p>
+                <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
+                <p className="text-slate-300 text-sm font-medium">Parsing your PDF...</p>
               </motion.div>
             )}
 
@@ -173,11 +168,11 @@ export default function UploadZone({ onResult }) {
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ duration: 0.5 }}
                 >
-                  <CheckCircle className="w-12 h-12 text-emerald-400" />
+                  <CheckCircle className="w-12 h-12 text-cyan-400" />
                 </motion.div>
                 <div className="text-center">
-                  <p className="text-emerald-400 text-sm font-medium">{message}</p>
-                  <p className="text-gray-400 text-xs mt-1">Result added to your dashboard</p>
+                  <p className="text-cyan-400 text-sm font-medium">{message}</p>
+                  <p className="text-slate-500 text-xs mt-1">Result added to semester grid</p>
                 </div>
               </motion.div>
             )}
@@ -194,7 +189,7 @@ export default function UploadZone({ onResult }) {
                 <div className="text-center">
                   <p className="text-red-400 text-sm font-medium">{message}</p>
                   <label htmlFor="pdf-upload" className="cursor-pointer">
-                    <p className="text-gray-400 text-xs mt-2 hover:text-gray-300">Try again</p>
+                    <p className="text-slate-400 text-xs mt-2 hover:text-slate-300">Try again</p>
                   </label>
                 </div>
               </motion.div>
