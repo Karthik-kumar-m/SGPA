@@ -1,6 +1,46 @@
 const BASE_URL = '/api'
 
 /**
+ * Signup with USN and password.
+ * @param {{name: string, usn: string, email?: string | null, password: string}} payload
+ * @returns {Promise<{access_token: string, token_type: string, user: object}>}
+ */
+export async function signup(payload) {
+  const response = await fetch(`${BASE_URL}/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Signup failed' }))
+    throw new Error(error.detail || 'Signup failed')
+  }
+
+  return response.json()
+}
+
+/**
+ * Login with USN and password.
+ * @param {{usn: string, password: string}} payload
+ * @returns {Promise<{access_token: string, token_type: string, user: object}>}
+ */
+export async function login(payload) {
+  const response = await fetch(`${BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Login failed' }))
+    throw new Error(error.detail || 'Login failed')
+  }
+
+  return response.json()
+}
+
+/**
  * Upload a PDF file for SGPA extraction.
  * @param {File} file
  * @returns {Promise<{subjects: Array, sgpa: number, total_credits: number}>}

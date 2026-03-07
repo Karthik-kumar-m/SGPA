@@ -1,16 +1,96 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models import Result, User
-from app.schemas import ParsedResult, SaveResultRequest, ResultOut, SubjectResult, UserCreate, UserOut
-from app.pdf_parser import parse_vtu_pdf
+from app.schemas import ParsedResult, SaveResultRequest, ResultOut, SubjectResult, UserCreate, UserOut, UserLogin, Token
+from app.pdf_parser import parse_vtu_pdf, _extract_text, _MARKS_PATTERN, _GRADE_PATTERN
+from app.auth import hash_password, verify_password, create_access_token, get_current_user
+import re
 
 router = APIRouter()
 
 
 # ---------------------------------------------------------------------------
-# Users
+# Authentication
+# ---------------------------------------------------------------------------
+
+@router.post("/auth/signup", response_model=Token, status_code=status.HTTP_201_CREATED)
+def signup(payload: UserCreate, db: Session = Depends(get_db)):
+    """Register a new user"""
+    # Check if USN already exists
+    existing = db.query(User).filter(User.usn == payload.usn).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"User with USN '{payload.usn}' already exists.",
+        )
+    
+    if payload.email:
+        existing_email = db.query(User).filter(User.email == payload.email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User with email '{payload.email}' already exists.",
+            )
+
+    # Hash password and create user
+    password_hash = hash_password(payload.password)
+    user = User(
+        name=payload.name,
+        usn=payload.usn,
+        email=payload.email,
+        password_hash=password_hash
+    )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User already exists with the provided credentials.",
+        )
+    db.refresh(user)
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user.usn})
+    
+    return Token(
+        access_token=access_token,
+        user=UserOut.model_validate(user)
+    )
+
+
+@router.post("/auth/login", response_model=Token)
+def login(payload: UserLogin, db: Session = Depends(get_db)):
+    """Login with USN and password"""
+    user = db.query(User).filter(User.usn == payload.usn).first()
+    
+    if not user or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect USN or password",
+        )
+    
+    # Create access token
+    access_token = create_access_token(data={"sub": user.usn})
+    
+    return Token(
+        access_token=access_token,
+        user=UserOut.model_validate(user)
+    )
+
+
+@router.get("/auth/me", response_model=UserOut)
+def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current authenticated user information"""
+    return current_user
+
+
+# ---------------------------------------------------------------------------
+# Users (kept for backward compatibility)
 # ---------------------------------------------------------------------------
 
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -21,9 +101,25 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_409_CONFLICT,
             detail=f"User with USN '{payload.usn}' already exists.",
         )
-    user = User(name=payload.name, usn=payload.usn, email=payload.email)
+    if payload.email:
+        existing_email = db.query(User).filter(User.email == payload.email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User with email '{payload.email}' already exists.",
+            )
+
+    password_hash = hash_password(payload.password)
+    user = User(name=payload.name, usn=payload.usn, email=payload.email, password_hash=password_hash)
     db.add(user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User already exists with the provided credentials.",
+        )
     db.refresh(user)
     return user
 
@@ -39,6 +135,61 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 # Upload PDF → parse + calculate SGPA
 # ---------------------------------------------------------------------------
+
+@router.post("/debug-pdf")
+async def debug_pdf(file: UploadFile = File(...)):
+    """Debug endpoint to see extracted text and pattern matches from PDF"""
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are accepted.",
+        )
+    
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+    
+    try:
+        # Extract raw text
+        text = _extract_text(file_bytes)
+        
+        # Try to find matches with both patterns
+        matches = []
+        for match in _MARKS_PATTERN.finditer(text):
+            matches.append({
+                "pattern": "marks-based",
+                "subject_code": match.group(1),
+                "total_marks": match.group(2),
+                "result": match.group(3),
+                "full_match": match.group(0)
+            })
+        
+        for match in _GRADE_PATTERN.finditer(text):
+            matches.append({
+                "pattern": "grade-based",
+                "subject_code": match.group(1),
+                "credits": match.group(2),
+                "grade": match.group(3),
+                "full_match": match.group(0)
+            })
+        
+        return {
+            "extracted_text": text[:2000] + ("..." if len(text) > 2000 else ""),  # First 2000 chars
+            "full_text_length": len(text),
+            "matches_found": len(matches),
+            "matches": matches[:20],  # First 20 matches
+            "expected_pattern": "Subject code (5-10 chars) + whitespace + credits (1-9) + whitespace + grade (O/A+/A/B+/B/C/P/F)",
+            "example": "21CS41   4   A+"
+        }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Debug error: {exc}",
+        )
+
 
 @router.post("/upload", response_model=ParsedResult)
 async def upload_result(file: UploadFile = File(...)):

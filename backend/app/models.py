@@ -12,6 +12,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     usn: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     email: Mapped[str | None] = mapped_column(String(150), unique=True, nullable=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     results: Mapped[list["Result"]] = relationship("Result", back_populates="user", cascade="all, delete-orphan")

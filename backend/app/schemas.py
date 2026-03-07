@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 
@@ -49,6 +49,26 @@ class UserCreate(BaseModel):
     name: str
     usn: str
     email: str | None = None
+    password: str = Field(min_length=6)
+
+    @field_validator('email')
+    @classmethod
+    def empty_string_to_none(cls, v: str | None) -> str | None:
+        """Convert empty strings to None for proper UNIQUE constraint handling"""
+        if v is not None and not v.strip():
+            return None
+        return v
+
+
+class UserLogin(BaseModel):
+    usn: str
+    password: str
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: "UserOut"
 
 
 class UserOut(BaseModel):
