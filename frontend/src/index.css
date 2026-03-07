@@ -1,3 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply font-inter bg-slate-950 text-gray-100;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl;
+  }
+
+  .glass-sm {
+    @apply backdrop-blur-md bg-white/5 border border-white/10 rounded-xl;
+  }
+
+  .glass-hover {
+    @apply transition-all duration-300 hover:bg-white/20 hover:border-white/40;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-indigo-200 via-purple-200 to-cyan-200 bg-clip-text text-transparent;
+  }
+
+  .gradient-primary {
+    @apply from-indigo-500 to-cyan-500;
+  }
+
+  .blur-blob {
+    @apply absolute rounded-full mix-blend-multiply filter blur-3xl opacity-20;
+  }
+
+  .font-inter {
+    @apply font-['Inter'];
+  }
+
+  .font-geist {
+    @apply font-['Geist'];
+  }
+
+  .font-code {
+    @apply font-mono;
+  }
+}
+
+/* Glassmorphism effect */
+.glass-effect {
+  backdrop-filter: blur(16px) brightness(1.1);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-effect:hover {
+  backdrop-filter: blur(16px) brightness(1.15);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Animated gradient */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient 3s ease infinite;
+}
+
+/* Glow effects */
+.glow-indigo {
+  box-shadow: 0 0 20px rgba(129, 140, 248, 0.3), 0 0 40px rgba(129, 140, 248, 0.1);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3), 0 0 40px rgba(6, 182, 212, 0.1);
+}
+
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3), 0 0 40px rgba(16, 185, 129, 0.1);
+}
+
+/* Smooth scroll */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 100vh;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #818CF8, #06B6D4);
+  border-radius: 100vh;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #A5B4FC, #22D3EE);
+  background-clip: padding-box;
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(129, 140, 248, 0);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+/* Selection */
+::selection {
+  background: rgba(129, 140, 248, 0.3);
+  color: #c7d2fe;
+}
+
+::-moz-selection {
+  background: rgba(129, 140, 248, 0.3);
+  color: #c7d2fe;
+}
+
+/* Focus states */
+input:focus,
+button:focus,
+textarea:focus,
+select:focus {
+  @apply outline-none ring-2 ring-indigo-500/50;
+}
+
+/* Responsive utilities */
+@media (max-width: 768px) {
+  .desktop\:flex {
+    @apply hidden;
+  }
+}
+

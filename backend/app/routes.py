@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app.database import get_db
 from app.models import Result, User
@@ -192,7 +193,7 @@ async def debug_pdf(file: UploadFile = File(...)):
 
 
 @router.post("/upload", response_model=ParsedResult)
-async def upload_result(file: UploadFile = File(...)):
+async def upload_result(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if file.content_type not in ("application/pdf", "application/octet-stream"):
         # Be lenient: some browsers send application/octet-stream for PDFs
         if not (file.filename or "").lower().endswith(".pdf"):
@@ -209,7 +210,7 @@ async def upload_result(file: UploadFile = File(...)):
         )
 
     try:
-        subjects, sgpa, total_credits = parse_vtu_pdf(file_bytes)
+        subjects, sgpa, total_credits, semester = parse_vtu_pdf(file_bytes, db)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -225,6 +226,7 @@ async def upload_result(file: UploadFile = File(...)):
         subjects=[SubjectResult(**s) for s in subjects],
         sgpa=sgpa,
         total_credits=total_credits,
+        semester=semester,
     )
 
 
@@ -238,17 +240,106 @@ def save_result(payload: SaveResultRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    result = Result(
-        user_id=payload.user_id,
-        semester=payload.semester,
-        sgpa=payload.sgpa,
-        total_credits=payload.total_credits,
-        subjects=[s.model_dump() for s in payload.subjects],
-    )
-    db.add(result)
-    db.commit()
-    db.refresh(result)
-    return result
+    # Check if result already exists for this user and semester
+    existing_result = db.query(Result).filter(
+        Result.user_id == payload.user_id,
+        Result.semester == payload.semester
+    ).first()
+
+    if existing_result:
+        # Update existing result
+        existing_result.sgpa = payload.sgpa
+        existing_result.total_credits = payload.total_credits
+        existing_result.subjects = [s.model_dump() for s in payload.subjects]
+        existing_result.uploaded_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing_result)
+        return existing_result
+    else:
+        # Create new result
+        result = Result(
+            user_id=payload.user_id,
+            semester=payload.semester,
+            sgpa=payload.sgpa,
+            total_credits=payload.total_credits,
+            subjects=[s.model_dump() for s in payload.subjects],
+        )
+        db.add(result)
+        db.commit()
+        db.refresh(result)
+        return result
+
+
+# ---------------------------------------------------------------------------
+# Upload and Auto-Save (for authenticated users)
+# ---------------------------------------------------------------------------
+
+@router.post("/upload-and-save", response_model=ResultOut)
+async def upload_and_save(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Upload a PDF, parse it, extract semester automatically, and save to database.
+    This endpoint requires authentication and automatically saves the result.
+    If a result for this semester already exists, it will be updated.
+    """
+    if file.content_type not in ("application/pdf", "application/octet-stream"):
+        if not (file.filename or "").lower().endswith(".pdf"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only PDF files are accepted.",
+            )
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+
+    try:
+        subjects, sgpa, total_credits, semester = parse_vtu_pdf(file_bytes, db)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Parsing error: {exc}",
+        )
+
+    # Check if result already exists for this user and semester
+    existing_result = db.query(Result).filter(
+        Result.user_id == current_user.id,
+        Result.semester == semester
+    ).first()
+
+    if existing_result:
+        # Update existing result
+        existing_result.sgpa = sgpa
+        existing_result.total_credits = total_credits
+        existing_result.subjects = subjects
+        existing_result.uploaded_at = datetime.utcnow()
+        db.commit()
+        db.refresh(existing_result)
+        return existing_result
+    else:
+        # Create new result
+        result = Result(
+            user_id=current_user.id,
+            semester=semester,
+            sgpa=sgpa,
+            total_credits=total_credits,
+            subjects=subjects,
+        )
+        db.add(result)
+        db.commit()
+        db.refresh(result)
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -267,3 +358,66 @@ def get_results(user_id: int, db: Session = Depends(get_db)):
         .all()
     )
     return results
+
+
+# ---------------------------------------------------------------------------
+# Course Reference Endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/courses/{course_code}")
+def get_course_info(course_code: str, db: Session = Depends(get_db)):
+    """Get course information by course code"""
+    from app.models import CourseReference
+    
+    course = db.query(CourseReference).filter(
+        CourseReference.course_code == course_code.upper()
+    ).first()
+    
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Course '{course_code}' not found in database."
+        )
+    
+    return {
+        "course_code": course.course_code,
+        "course_title": course.course_title,
+        "credits": course.credits,
+        "semester": course.semester,
+        "stream": course.stream
+    }
+
+
+@router.get("/courses")
+def list_courses(
+    semester: int | None = None,
+    credits: int | None = None,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """List courses with optional filters"""
+    from app.models import CourseReference
+    
+    query = db.query(CourseReference)
+    
+    if semester is not None:
+        query = query.filter(CourseReference.semester == semester)
+    
+    if credits is not None:
+        query = query.filter(CourseReference.credits == credits)
+    
+    courses = query.limit(limit).all()
+    
+    return {
+        "count": len(courses),
+        "courses": [
+            {
+                "course_code": c.course_code,
+                "course_title": c.course_title,
+                "credits": c.credits,
+                "semester": c.semester,
+                "stream": c.stream
+            }
+            for c in courses
+        ]
+    }

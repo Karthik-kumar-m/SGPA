@@ -17,6 +17,7 @@ class ParsedResult(BaseModel):
     subjects: list[SubjectResult]
     sgpa: float
     total_credits: int
+    semester: int
 
 
 # ---------- Save-result request ----------
